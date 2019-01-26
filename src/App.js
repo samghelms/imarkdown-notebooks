@@ -10,7 +10,7 @@ const settings = ServerConnection.makeSettings(
   {
       baseUrl: 'http://localhost:8888', 
       wsUrl: 'ws://localhost:8888',
-      token: 'c9e34e0f9e03c49e1bb9aa3f740a167561756505b1bff7fb'
+      token: 'a5ba01b1343b539a1dec2fe1846caecb3c7b49014a7426dd'
   }
 )
 
