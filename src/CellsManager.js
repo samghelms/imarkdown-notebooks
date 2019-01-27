@@ -19,6 +19,29 @@ class Cell {
         this.editor.addContentWidget(this.buttonsWidget)
     }
 
+    addSerializedOutput(html, line) {
+        console.log('adding serialized')
+        console.log(html)
+        console.log(line)
+        const this2 = this
+        this.editor.changeViewZones(function(changeAccessor) {
+            if (this2.viewZoneId) {
+                // changeAccessor.removeZone(this2.viewZoneId)
+                // TODO: raise an error here
+                return
+            }
+            this2.outputNode = document.createElement('div')
+            this2.outputNode.innerHTML = html
+            this2.zone = {
+                afterLineNumber: line,
+                heightInLines: 5,
+                domNode: this2.outputNode
+            }
+
+            this2.viewZoneId = changeAccessor.addZone(this2.zone)
+        })
+    }
+
     addOutput() {
         const this2 = this
         this.editor.changeViewZones(function(changeAccessor) {
@@ -26,8 +49,8 @@ class Cell {
             if (this2.viewZoneId) {
                 changeAccessor.removeZone(this2.viewZoneId)
             }
-            console.log("executing, start", this2.start)
-            console.log("end", this2.end)
+            // console.log("executing, start", this2.start)
+            // console.log("end", this2.end)
             const cellContents = this2._model.getValueInRange({startLineNumber: this2.start, endLineNumber: this2.end})
             const splitContents = cellContents.split(this2._model.getEOL())
             const header = splitContents[0]
@@ -89,6 +112,20 @@ export default class CellsManager {
         this._editor = editor;
         this._cells = {};
         this._kernelManager = kernelManager; // Kernels for lack of a better word. Anything that can execute code.
+        this.serializeCells = this.serializeCells.bind(this)
+        this.serializedOutputs = {}
+    }
+
+    addSerializedOutput(serializeOutput, line) {
+        this.serializedOutputs[line] = serializeOutput
+    }
+
+    addCell(start, end) {
+        const newCell = new Cell(start, end, this._editor, this._model, this._kernelManager);
+        if (end in this.serializedOutputs) {
+            newCell.addSerializedOutput(this.serializedOutputs[end], end)
+        }
+        this._cells[start] = newCell
     }
 
     updateCells(changeEvent) {
@@ -107,8 +144,8 @@ export default class CellsManager {
                 // delete cells in the deleted range
                 const cellsInRange = this.cellsInside(startLine, endLine)
                 if (cellsInRange.length > 0) {
-                    console.log("cells inside")
-                    console.log(cellsInRange)
+                    // console.log("cells inside")
+                    // console.log(cellsInRange)
                     cellsInRange.map(k => {
                         this._cells[k].dispose()
                         delete this._cells[k]
@@ -120,15 +157,15 @@ export default class CellsManager {
                 if (this.inCell(startLine)) {
                     endLine += lineDiff
                 } else {
-                    console.log("parsing pasted input", newLines)
+                    // console.log("parsing pasted input", newLines)
                     // parse input for new cells
                     let inCellFlag = false;
                     let start = null;
                     let foundCell = false;
                     for (let i = 0; i < newLines.length; i++) {
                         const l = newLines[i];
-                        console.log(l);
-                        console.log(inCellFlag)
+                        // console.log(l);
+                        // console.log(inCellFlag)
                         if (inCellFlag === false) {
                             const startTest = l.match(blockBeginRegex)
                             if (startTest) {
@@ -139,8 +176,9 @@ export default class CellsManager {
                             const endTest = l.match(blockEndRegex)
                             if (endTest) {
                                 const end = i + startLine;
-                                console.log('start', start)
-                                this._cells[start] = new Cell(start, end, this._editor, this._model, this._kernelManager);
+                                // console.log('start', start)
+                                // this._cells[start] = new Cell(start, end, this._editor, this._model, this._kernelManager);
+                                this.addCell(start, end)
                                 inCellFlag = false;
                                 foundCell = true;
                             }
@@ -155,13 +193,13 @@ export default class CellsManager {
                 if (this.inCell(startLine)) {
 
                 } else {
-                    console.log("line diff 0")
+                    // console.log("line diff 0")
                     // handle getting new blocks
                     const thisLine = this._model.getLineContent(startLine);
                     const startTest = thisLine.match(blockBeginRegex);
                     const endTest = thisLine.match(blockEndRegex);
                     if (startTest) {
-                        console.log("start test triggered")
+                        // console.log("start test triggered")
                         // search forwards for an end mark
                         const remainingLines = this._model.getValueInRange({startLineNumber: startLine + 1, endLineNumber: this._model.getLineCount() + 1}).split(this._model.getEOL())
                         console.log(remainingLines);
@@ -169,7 +207,8 @@ export default class CellsManager {
                             const l = remainingLines[i];
                             console.log(l)
                             if (l.match(blockEndRegex)) {
-                                this._cells[i] = new Cell(startLine, startLine + i + 1, this._editor, this._model, this._kernelManager); //{start: startLine + 1, end: startLine + i}
+                                // this._cells[i] = new Cell(startLine, startLine + i + 1, this._editor, this._model, this._kernelManager); //{start: startLine + 1, end: startLine + i}
+                                this.addCell(startLine, startLine + i + 1)
                                 break;
                             }
                             if (l.match(blockBeginRegex)) {
@@ -183,7 +222,8 @@ export default class CellsManager {
                             // console.log(i);
                             const l = prevLines[i];
                             if (l.match(blockBeginRegex) && !(i in this._cells)) {
-                                this._cells[i] = new Cell(i + 1, startLine, this._editor, this._model, this._kernelManager); //{start: i + 1, end: startLine};
+                                // this._cells[i] = new Cell(i + 1, startLine, this._editor, this._model, this._kernelManager); //{start: i + 1, end: startLine};
+                                this.addCell(i + 1, startLine)
                                 break;
                             }
                             if (l.match(blockEndRegex)) {
@@ -194,10 +234,10 @@ export default class CellsManager {
                 }
 
             }
-            console.log('endline', endLine)
+            // console.log('endline', endLine)
             for (let key of Object.keys(this._cells)) {
                 const cell = this._cells[key];
-                console.log(cell)
+                // console.log(cell)
                 if (cell.start >= endLine) {
                     cell.updateStart(lineDiff);
                 } 
@@ -225,5 +265,14 @@ export default class CellsManager {
             this._cells[key].dispose()
             delete this._cells[key]
         }
+    }
+
+    serializeCells() {
+        const serializedCells = []
+        for (let cell of Object.values(this._cells)) {
+            const serializedContents = cell.zone.domNode.innerHTML.split('\n').join('<br>')
+            serializedCells.push({line: cell.end, html: serializedContents})
+        }
+        return serializedCells
     }
 }

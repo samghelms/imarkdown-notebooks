@@ -30,14 +30,14 @@ export default class JupyterFSProvider {
     }
 
     async save(path, content) {
-        console.log('saving')
-        console.log(path)
-        console.log(content)
         return await this.contentsManager.save(path, {content, type: 'file', format: 'text'});
     }
 
+    async rename(oldPath, newPath) {
+        return await this.contentsManager.rename(oldPath, newPath);
+    }
+
     async getContent(path) {
-        console.log('getting path', path)
         return await this.contentsManager.get(path);
     }
 

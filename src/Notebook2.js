@@ -4,7 +4,7 @@ import CellsManager from './CellsManager'
 
 const startState = {
     language: 'markdown',
-    defaultVal: 'test\ntest',
+    // defaultVal: 'test\ntest',
     options: {
       glyphMargin: true,
       contextmenu: false,
@@ -22,8 +22,11 @@ export default class Notebook extends React.Component {
         this.monacoRef = React.createRef();
         this._editor = null;
         this._model = monaco.editor.createModel(startState.defaultVal, startState.language);
+        this.props.registerModel(this._model);
         this._cells = []
         this.keyHandler = this.keyHandler.bind(this)
+        this.save = this.save.bind(this)
+        this.outputAreaRegex = /^<div [\sA-Za-z="-]*(jp-OutputArea-output)/
     }
 
     async componentDidMount() {
@@ -39,13 +42,33 @@ export default class Notebook extends React.Component {
         window.addEventListener("resize", () => this._editor.layout());
 
         if (this.props.path) {
-            this.initializeModel(this.props.path)
+            this.initializeModel()
         }
     }
 
-    async initializeModel(path) {
+    async getParseContent() {
+        const content = await this.props.getContent();
+        const contentSplit = content.split('\n'); // TODO: add better newline handling
+        const editorContent = []
+        let outputs = 0;
+        for (let i = 0; i < contentSplit.length; i++) {
+            const item = contentSplit[i];
+            if (item.match(this.outputAreaRegex)) {
+                console.log("match!")
+                console.log(item)
+                // outputs.push({widgetContent: item, line: i - outputs.length})
+                this._cellsManager.addSerializedOutput(item, i - outputs)
+                outputs += 1;
+            } else {
+                editorContent.push(item)
+            }
+        }
+        return editorContent.join('\n')
+    }
+    
+    async initializeModel() {
         if (this.props.getContent) {
-            const content = await this.props.getContent(path);
+            const content = await this.getParseContent();
             this._model.pushEditOperations(
                 [],
                 [
@@ -59,16 +82,28 @@ export default class Notebook extends React.Component {
     }
 
     componentWillReceiveProps(newProps) {
-        if (newProps.path !== null && this.props.path !== newProps.path) {
+        if (newProps.path !== null && this.props.path !== newProps.path && !newProps.isRename) {
             this._cellsManager.disposeCells()
             this.initializeModel(newProps.path)
             
         }
     }
 
+    save() {
+        console.log("save called")
+        const serializedCells = this._cellsManager.serializeCells()
+        const editorLines = this._model.getLinesContent()
+        for (let i = 0; i < serializedCells.length; i++) {
+            const {line, html} = serializedCells[i]
+            editorLines.splice(line + i, 0, html)
+        }
+        console.log(editorLines)
+        this.props.save(editorLines)
+    }
+
     keyHandler(e) {
         if(e.metaKey && e.key == 's') {
-            this.props.save(this.props.path, this._model.getLinesContent())
+            this.save()
             e.preventDefault()
         }
     }

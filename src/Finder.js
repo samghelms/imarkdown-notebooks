@@ -3,18 +3,48 @@ import finder from './finder-impl';
 import './finder-style.css'
 import * as _ from './util';
 
-const isMD = (name) => {
-    const splitName = name.split('.');
+const isMD = (item) => {
+    const splitName = item.name.split('.');
     return splitName[splitName.length - 1] === 'md'
 
 }
+
+const isFolder = info => {
+    return info.type === 'directory'
+}
+
+const ButtonGroup = ({mode, onCancel, onNameChange, disabledOpen, selectedFile, openFile, createFile, fileName}) => {
+    console.log(fileName)
+    if (mode === 'save') {
+        return <span>
+        <span>Save as: </span><input onChange={onNameChange} defaultValue={fileName}></input>
+        <button onClick={onCancel} style={{float: "right"}}>cancel</button>
+        <button disabled={disabledOpen} onClick={() => createFile(selectedFile, fileName)} style={{float: "right"}}>save</button>
+    </span>
+    }
+    return <span>
+        <button onClick={onCancel} style={{float: "right"}}>cancel</button>
+        <button disabled={disabledOpen} onClick={() => openFile(selectedFile)} style={{float: "right"}}>open</button>
+    </span>
+}
+
+
 export default class Finder extends Component {
     constructor(props) {
         super(props)
         this.finderRef = React.createRef();
         this.createSimpleColumn = this.createSimpleColumn.bind(this)
         this.createItemContent = this.createItemContent.bind(this)
-        this.state = {disabledOpen: true}
+        this.handleNameChange = this.handleNameChange.bind(this)
+        this.createFile = this.createFile.bind(this)
+        this.state = {disabledOpen: true, fileName: this.props.fileName}
+
+        this.tests = mode => {
+            if (mode === 'save') {
+                return isFolder
+            }
+            return isMD
+        }
     }
 
     componentDidMount() {
@@ -36,7 +66,7 @@ export default class Finder extends Component {
 
         this.finder.on('item-selected', (obj) => {
             const item = obj.item._item;
-            this.setState({selectedFile: item, disabledOpen: !isMD(item.name)})
+            this.setState({selectedFile: item, disabledOpen: !this.tests(this.props.mode)(item)})
         });
 
     }
@@ -64,7 +94,7 @@ export default class Finder extends Component {
     
         _.append(row, [i, filename, size, mod, path]);
     
-        if (isMD(item.name)) {
+        if (this.tests(this.props.mode)(item)) {
             var open = _.el('div.meta');
             var openLabel = _.el('strong');
             _.append(openLabel, _.text('Open as notebook: '));
@@ -107,17 +137,29 @@ export default class Finder extends Component {
         _.addClass(iconAppend, appendClasses);
         frag.appendChild(iconAppend);
 
-        if (isMD(item.name)) {
+        if (this.tests(this.props.mode)(item)) {
             label.ondblclick = () => this.props.openFile(item)
         }
 
         return frag;
     }
 
+    createFile (fileInfo, fileName) {
+        this.props.createFile(fileInfo.path + '/' + fileName, fileName)
+    }   
+
+    handleNameChange(e) {
+        const newName = e.target.value
+        this.setState({fileName: newName})
+    }
+
+    handleKeys(e) {
+        console.log("key press detected")
+    }
+
     render() {
-        return <div><div style={this.props.style} ref={c => this.finderRef = c}/>
-            <button onClick={this.props.onCancel} style={{float: "right"}}>cancel</button>
-            <button disabled={this.state.disabledOpen} onClick={() => this.props.openFile(this.state.selectedFile)} style={{float: "right"}}>open</button>
+        return <div><div onKeyPress={this.handleKeys} style={this.props.style} ref={c => this.finderRef = c}/>
+            <ButtonGroup createFile={this.createFile} onNameChange={this.handleNameChange} fileName={this.state.fileName} saveFile={this.saveFile} onCancel={this.props.onCancel} selectedFile={this.state.selectedFile} disabledOpen={this.state.disabledOpen} openFile={this.props.openFile} mode={this.props.mode}/>
         </div>
     }
 }
