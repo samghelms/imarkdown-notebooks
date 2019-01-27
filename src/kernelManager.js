@@ -6,6 +6,7 @@ export default class KernelManager {
     // return a promise that resolves when the entire execution is done as well as an initial placeholder
     // allows you to pass arbitrary string arguments to your kernel
     execute(header, body) {
+        console.log(this._kernels)
         const kernel = this.findMatchingKernel(header)
         if (kernel) {
             return kernel.execute(header, body)
@@ -28,10 +29,11 @@ export default class KernelManager {
         this._kernels[kernelName] = newKernel;
     }
 
-    close() {
+    async close() {
         for (let k of Object.values(this._kernels)) {
-            k.close()
+            await k.close()
         }
+        return 1;
         // closes connections to all open kernels
     }
 }

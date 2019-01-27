@@ -13,10 +13,10 @@ class Cell {
         this.zone = null
         this.viewZoneId = null 
         this.overlay = null 
-        this.addOutput = this.addOutput.bind(this)
+        // this.addOutput = this.addOutput.bind(this)
         this.getStartLine = this.getStartLine.bind(this)
-        this.buttonsWidget = buttonsWidget(start, 200, this.addOutput, this.getStartLine)
-        editor.addContentWidget(this.buttonsWidget)
+        this.buttonsWidget = buttonsWidget(start, 200, () => this.addOutput(), this.getStartLine)
+        this.editor.addContentWidget(this.buttonsWidget)
     }
 
     addOutput() {
@@ -36,7 +36,7 @@ class Cell {
             // this2.outputNode = document.createElement('div')
             // this2.outputNode.innerHTML = cellContents
             // this2.outputNode.style.background = 'lightgreen'
-
+            // this2.outputNode.appendChild(executeResults.node)
             this2.zone = {
                 afterLineNumber: this2.end,
                 heightInLines: 5,
@@ -218,5 +218,12 @@ export default class CellsManager {
     cellsInside(start, end) {
         const _inCell = (key) => (this._cells[key].start >= start && this._cells[key].end <= end);
         return Object.keys(this._cells).filter(_inCell)
+    }
+
+    disposeCells() {
+        for (let key of Object.keys(this._cells)) {
+            this._cells[key].dispose()
+            delete this._cells[key]
+        }
     }
 }
